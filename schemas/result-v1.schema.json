@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-offline-sync:result-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "transaction_id", "package_id", "target_id", "status"],
+  "properties": {
+    "schema": {"const": "result-v1"},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "package_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["success", "no-op", "needs-full-bundle", "rejected", "failed-rolled-back", "failed-preserved", "recovery-failed", "media-io-failure"]}
+  }
+}

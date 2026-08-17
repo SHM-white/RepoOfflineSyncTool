@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-offline-sync:manifest-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "package_id", "target_id", "media_id", "generation", "target_commit", "repositories", "routes", "segments", "lfs_objects", "actions", "failure_policy", "filesystem", "full_fallback_included", "destination", "persistent_paths", "pairing_token", "dangerous_confirmed", "artifacts"],
+  "properties": {
+    "schema": {"const": "manifest-v1"},
+    "package_id": {"$ref": "#/$defs/id"},
+    "target_id": {"$ref": "#/$defs/id"},
+    "media_id": {"$ref": "#/$defs/id"},
+    "generation": {"type": "integer", "minimum": 0},
+    "target_commit": {"$ref": "#/$defs/gitOid"},
+    "repositories": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/repository"}},
+    "routes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/route"}},
+    "segments": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/segment"}},
+    "lfs_objects": {"type": "array", "items": {"$ref": "#/$defs/lfs"}},
+    "actions": {"type": "array", "items": {"$ref": "#/$defs/action"}},
+    "failure_policy": {"enum": ["rollback", "keep-failed-stopped"]},
+    "filesystem": {"enum": ["ext4", "exfat", "ntfs3", "ntfs-3g"]},
+    "full_fallback_included": {"type": "boolean"},
+    "destination": {"$ref": "#/$defs/absolutePath"},
+    "persistent_paths": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}},
+    "pairing_token": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "dangerous_confirmed": {"type": "boolean"},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$"},
+    "gitOid": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "absolutePath": {"type": "string", "pattern": "^/(?!$)(?!.*(?:^|/)\\.\\.?($|/))(?!.*//)[^\\u0000\\\\]+$"},
+    "relativePath": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?($|/))(?!.*//)[^\\u0000\\\\]+$"},
+    "repository": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repo_id", "parent_repo_id", "relative_path", "target_commit", "provenance_url"],
+      "properties": {
+        "repo_id": {"$ref": "#/$defs/id"}, "parent_repo_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "relative_path": {"oneOf": [{"const": "."}, {"$ref": "#/$defs/relativePath"}]}, "target_commit": {"$ref": "#/$defs/gitOid"},
+        "provenance_url": {"type": ["string", "null"]}
+      }
+    },
+    "route": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repo_id", "segment_ids", "initial_prerequisites", "final_target_commit"],
+      "properties": {
+        "repo_id": {"$ref": "#/$defs/id"}, "segment_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/id"}},
+        "initial_prerequisites": {"type": "array", "items": {"$ref": "#/$defs/gitOid"}}, "final_target_commit": {"$ref": "#/$defs/gitOid"}
+      }
+    },
+    "segment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["segment_id", "repo_id", "bundle_kind", "generation", "base_commit", "target_commit", "byte_size", "oversize"],
+      "properties": {
+        "segment_id": {"$ref": "#/$defs/id"}, "repo_id": {"$ref": "#/$defs/id"}, "bundle_kind": {"enum": ["full", "incremental"]},
+        "generation": {"type": "integer", "minimum": 0}, "base_commit": {"oneOf": [{"$ref": "#/$defs/gitOid"}, {"type": "null"}]},
+        "target_commit": {"$ref": "#/$defs/gitOid"}, "byte_size": {"type": "integer", "minimum": 1}, "oversize": {"type": "boolean"}
+      }
+    },
+    "lfs": {
+      "type": "object", "additionalProperties": false, "required": ["oid", "byte_size", "repo_ids"],
+      "properties": {"oid": {"$ref": "#/$defs/sha256"}, "byte_size": {"type": "integer", "minimum": 1}, "repo_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/id"}}}
+    },
+    "action": {
+      "type": "object", "additionalProperties": false, "required": ["name", "phase", "argv", "timeout_seconds"],
+      "properties": {"name": {"type": "string", "minLength": 1}, "phase": {"enum": ["preflight", "build", "pre-activate", "post-activate", "health"]}, "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "timeout_seconds": {"type": "integer", "minimum": 1}}
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256", "byte_size"],
+      "properties": {"path": {"$ref": "#/$defs/relativePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "byte_size": {"type": "integer", "minimum": 1}}
+    }
+  }
+}

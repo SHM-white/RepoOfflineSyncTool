@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-offline-sync:profile-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "repo_id", "common_git_dir", "provenance_remote", "destination", "service_user", "danger_enabled", "target_token"],
+  "properties": {
+    "schema": {"const": "profile-v1"},
+    "repo_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "common_git_dir": {"$ref": "#/$defs/absolutePath"},
+    "provenance_remote": {"type": "string", "minLength": 1},
+    "destination": {"$ref": "#/$defs/absolutePath"},
+    "service_user": {"type": "string", "pattern": "^[a-z_][a-z0-9_-]{0,31}$"},
+    "danger_enabled": {"type": "boolean"},
+    "target_token": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
+  },
+  "$defs": {
+    "absolutePath": {"type": "string", "pattern": "^/(?!$)(?!.*(?:^|/)\\.\\.?($|/))(?!.*//)[^\\u0000\\\\]+$"}
+  }
+}

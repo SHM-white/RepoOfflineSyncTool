@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-offline-sync:state-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "transaction_id", "package_id", "target_id", "phase", "generation", "target_commit"],
+  "properties": {
+    "schema": {"const": "state-v1"},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "package_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "phase": {"enum": ["discovered", "copied", "verified", "imported", "snapshot-created", "staged", "built", "activating", "activated", "health-checked", "committed", "rejected", "no-op", "needs-full", "rolled-back", "failed-preserved", "recovery-failed"]},
+    "generation": {"type": "integer", "minimum": 0},
+    "target_commit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}
+  }
+}

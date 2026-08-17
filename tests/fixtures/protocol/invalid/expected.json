@@ -1,0 +1,1 @@
+{"boolean-generation.json":"wrong-type","duplicate-artifact.json":"duplicate-value","duplicate-key.json":"duplicate-key","malformed-token.json":"malformed-token","missing-key.json":"missing-key","schema-v2.json":"unsupported-schema","traversal-ready.json":"noncanonical-path","truncated.json":"malformed-json","unknown-key.json":"unknown-key"}

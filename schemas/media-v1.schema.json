@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-offline-sync:media-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "media_id", "filesystem"],
+  "properties": {
+    "schema": {"const": "media-v1"},
+    "media_id": {"type": "string", "minLength": 1},
+    "filesystem": {"enum": ["ext4", "exfat", "ntfs3", "ntfs-3g"]}
+  }
+}

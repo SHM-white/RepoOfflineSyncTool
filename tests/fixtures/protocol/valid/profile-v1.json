@@ -1,0 +1,1 @@
+{"common_git_dir":"/tmp/repo.git","danger_enabled":false,"destination":"/home/updater/app","provenance_remote":"ssh://git.example/repo.git","repo_id":"0123456789abcdef0123456789abcdef","schema":"profile-v1","service_user":"updater","target_token":"0123456789abcdef0123456789abcdef"}
