@@ -10,6 +10,9 @@ The target runtime uses only Python 3.10's standard library plus normal Ubuntu
 system tools (`git`, `systemd`, `udev`, `lsblk`, `findmnt`, `mount`, `umount`).
 It does not install packages or fetch dependencies from the network.
 
+完整的中文使用、手动测试和真机验证步骤见
+[`docs/USAGE_AND_TESTING.zh-CN.md`](docs/USAGE_AND_TESTING.zh-CN.md)。
+
 ## Host workflow
 
 Run from a clean, non-shallow Git worktree:

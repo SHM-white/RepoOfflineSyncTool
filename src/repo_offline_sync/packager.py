@@ -16,8 +16,6 @@ from repo_offline_sync.gitrepo import create_bundle, create_full_bundle, discove
 from repo_offline_sync.media import discover_media, initialize_media, media_root, publish_package, read_media_marker, receipts
 
 
-_DANGEROUS_PREFIXES = (Path("/etc"), Path("/opt"), Path("/root"), Path("/usr"), Path("/var"), Path("/boot"))
-
 
 def _prompt(label: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
@@ -80,11 +78,17 @@ def _configure_new_profile(path: Path, profile: dict[str, Any]) -> None:
 
 
 def _is_dangerous(destination: Path, service_user: str) -> bool:
-    resolved = destination.resolve(strict=False)
-    safe_home = Path("/home") / service_user
+    # Do not follow the destination itself.  After the first successful update
+    # it is normally an active symlink into the managed release directory;
+    # following it would incorrectly turn a safe /home/<user>/... destination
+    # into a path below REPO_OFFLINE_SYNC_STATE on every later package run.
+    resolved = destination.parent.resolve(strict=False) / destination.name
+    safe_home = (Path("/home") / service_user).resolve(strict=False)
     if resolved == safe_home or safe_home in resolved.parents:
         return False
-    return resolved == Path("/") or any(resolved == prefix or prefix in resolved.parents for prefix in _DANGEROUS_PREFIXES) or not str(resolved).startswith("/home/")
+    # Everything outside the configured service user's home, including
+    # /home/<other-user>/..., requires the explicit dangerous-path workflow.
+    return True
 
 
 def _confirm_destination(profile: dict[str, Any]) -> bool:

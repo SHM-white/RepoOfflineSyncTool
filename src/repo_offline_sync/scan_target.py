@@ -51,11 +51,19 @@ def _copy_candidates(mount: Path) -> list[tuple[Path, str]]:
     copied: list[tuple[Path, str]] = []
     if not inbox.is_dir():
         return copied
+    installed = _installed_generations()
     for package in sorted(inbox.glob("pkg-*")):
         if not package.is_dir() or not (package / "READY.json").is_file():
             continue
         try:
             verify_ready_package(package)
+            manifest = load_json(package / "manifest.json")
+            if not isinstance(manifest, dict):
+                continue
+            root = str(manifest.get("root_repo_id") or "")
+            generation = int(manifest.get("generation") or 0)
+            if root and generation <= installed.get(root, 0):
+                continue
             transaction = uuid.uuid4().hex
             copied.append((local_copy(package, transaction), str(marker["media_id"])))
         except (SyncError, OSError) as exc:
@@ -63,8 +71,30 @@ def _copy_candidates(mount: Path) -> list[tuple[Path, str]]:
     return copied
 
 
+def _installed_generations() -> dict[str, int]:
+    """Return the highest successfully committed generation per root repo."""
+    highest: dict[str, int] = {}
+    results = target_state_root() / "results"
+    if not results.is_dir():
+        return highest
+    for path in results.glob("*.json"):
+        try:
+            value = load_json(path)
+        except OSError:
+            continue
+        if not isinstance(value, dict) or value.get("status") not in {"success", "no-op"}:
+            continue
+        root = str(value.get("root_repo_id") or "")
+        if not root:
+            continue
+        generation = int(value.get("generation") or 0)
+        highest[root] = max(highest.get(root, 0), generation)
+    return highest
+
+
 def _choose(copied: list[tuple[Path, str]]) -> list[tuple[Path, str]]:
-    """Choose the newest generation per root repository deterministically."""
+    """Choose only newer-than-installed packages, newest per root repo."""
+    installed = _installed_generations()
     best: dict[str, tuple[int, Path, str]] = {}
     for package, media_id in copied:
         try:
@@ -75,6 +105,8 @@ def _choose(copied: list[tuple[Path, str]]) -> list[tuple[Path, str]]:
             continue
         root = str(manifest.get("root_repo_id") or "")
         generation = int(manifest.get("generation") or 0)
+        if not root or generation <= installed.get(root, 0):
+            continue
         current = best.get(root)
         if current is None or generation > current[0]:
             best[root] = (generation, package, media_id)
