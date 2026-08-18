@@ -90,9 +90,16 @@ def _import_repositories(package: Path, manifest: dict[str, Any]) -> dict[str, s
             raise SyncError("invalid repository entry")
         repo_id = str(node["repo_id"])
         target = str(node["target_commit"])
-        bare = _ensure_bare(repo_id, str(node.get("object_format") or "sha1"))
+        object_format = str(node.get("object_format") or "sha1")
+        bare = _bare(repo_id)
+        if bare.exists():
+            _ensure_bare(repo_id, object_format)
         bundle = _select_bundle(node, bare)
         if bundle is not None:
+            # Do not create a managed repository until a usable route has been
+            # selected.  In particular, needs-full-bundle should not leave an
+            # empty bare repository behind on a fresh target.
+            bare = _ensure_bare(repo_id, object_format)
             bundle_path = inside(package, str(bundle["path"]))
             digest = hash_file(bundle_path)
             if digest["sha256"] != bundle.get("sha256") or digest["size"] != bundle.get("size"):
@@ -378,7 +385,12 @@ def _validate_manifest(package: Path) -> dict[str, Any]:
     destination = Path(str(value.get("destination") or ""))
     if not destination.is_absolute() or destination == Path("/"):
         raise SyncError("invalid target destination")
-    resolved = destination.resolve(strict=False)
+    # Resolve the parent path, but deliberately do not follow the destination
+    # itself: after the first successful activation it is expected to be a
+    # symlink into the managed releases directory.  Following that symlink here
+    # would make every later update look as if the configured destination were
+    # inside updater state.
+    resolved = destination.parent.resolve(strict=False) / destination.name
     forbidden = (Path("/proc"), Path("/sys"), Path("/dev"), Path("/run"))
     if any(resolved == item or item in resolved.parents for item in forbidden):
         raise SyncError("target destination is a pseudo/runtime filesystem")

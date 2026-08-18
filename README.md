@@ -73,8 +73,8 @@ strings are rejected by the packager. The action environment is reduced to a
 small base environment plus the explicitly declared values.
 
 Destinations outside the normal `/home/<service-user>/...` tree require the
-saved `danger_enabled` switch and, on every package operation, exact interactive
-TTY input `yes`. `/` is never accepted.
+saved `danger_enabled` switch and an interactive confirmation on every package
+operation. `/` is never accepted.
 
 ## Target installation
 
