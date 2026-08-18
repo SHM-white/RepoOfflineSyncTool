@@ -21,35 +21,61 @@ _DANGEROUS_PREFIXES = (Path("/etc"), Path("/opt"), Path("/root"), Path("/usr"), 
 
 def _prompt(label: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
-    value = input(f"{label}{suffix}: ").strip()
+    value = input(f"{label}{suffix}：").strip()
     return value or default
 
 
+def _choose(label: str, options: list[tuple[str, str]], *, default: int = 1) -> str:
+    if not options or not 1 <= default <= len(options):
+        raise ValueError("invalid menu definition")
+    print(label)
+    for index, (_, text) in enumerate(options, 1):
+        marker = "（默认）" if index == default else ""
+        print(f"  {index}. {text}{marker}")
+    while True:
+        raw = input(f"请选择 [默认 {default}]：").strip()
+        if not raw:
+            return options[default - 1][0]
+        try:
+            index = int(raw)
+        except ValueError:
+            print(f"请输入 1～{len(options)} 之间的数字。")
+            continue
+        if 1 <= index <= len(options):
+            return options[index - 1][0]
+        print(f"请输入 1～{len(options)} 之间的数字。")
+
+
 def _yes_no(label: str, *, default: bool = False) -> bool:
-    marker = "Y/n" if default else "y/N"
-    raw = input(f"{label} [{marker}]: ").strip().lower()
-    if not raw:
-        return default
-    return raw in {"y", "yes"}
+    value = _choose(
+        label,
+        [("yes", "是"), ("no", "否")],
+        default=1 if default else 2,
+    )
+    return value == "yes"
 
 
 def _configure_new_profile(path: Path, profile: dict[str, Any]) -> None:
-    print(f"Created host profile: {path}")
-    print("Target installer prints target_id and pairing_token; copy them here.")
-    profile["target_id"] = _prompt("Target ID", str(profile["target_id"]))
-    token = _prompt("Pairing token", str(profile["pairing_token"]))
+    print(f"已创建此仓库的主机配置：{path}")
+    print("请从目标机安装程序输出中复制目标 ID 和配对令牌。")
+    profile["target_id"] = _prompt("目标 ID", str(profile["target_id"]))
+    token = _prompt("配对令牌", str(profile["pairing_token"]))
     if len(token) != 32 or any(c not in "0123456789abcdef" for c in token):
-        raise SyncError("pairing token must be 32 lowercase hexadecimal characters", 2)
+        raise SyncError("配对令牌必须是 32 位小写十六进制字符", 2)
     profile["pairing_token"] = token
-    profile["destination"] = _prompt("Target destination", str(profile["destination"]))
-    profile["service_user"] = _prompt("Service user", str(profile["service_user"]))
-    profile["service_unit"] = _prompt("systemd service unit (blank for none)", "")
-    persistent = _prompt("Persistent relative paths, comma separated", "")
+    profile["destination"] = _prompt("目标机部署路径", str(profile["destination"]))
+    profile["service_user"] = _prompt("运行服务的用户", str(profile["service_user"]))
+    profile["service_unit"] = _prompt("systemd 服务单元名称（不需要则留空）", "")
+    persistent = _prompt("需要跨版本保留的相对路径（多个路径用英文逗号分隔）", "")
     profile["persistent_paths"] = [part.strip() for part in persistent.split(",") if part.strip()]
-    policy = _prompt("Failure policy: rollback / keep-failed-stopped", "rollback")
-    if policy not in {"rollback", "keep-failed-stopped"}:
-        raise SyncError("invalid failure policy", 2)
-    profile["failure_policy"] = policy
+    profile["failure_policy"] = _choose(
+        "新版本部署失败时如何处理？",
+        [
+            ("rollback", "自动回滚到上一个可用版本"),
+            ("keep-failed-stopped", "保留失败版本并停止服务，便于排查"),
+        ],
+        default=1,
+    )
     save_profile(path, profile)
 
 
@@ -69,15 +95,15 @@ def _confirm_destination(profile: dict[str, Any]) -> bool:
     if not dangerous:
         return False
     if not bool(profile.get("danger_enabled")):
-        print(f"Destination {destination} is outside the normal service-user home tree.")
-        if not _yes_no("Enable dangerous destination for this saved profile?", default=False):
-            raise SyncError("dangerous destination was not enabled", 2)
+        print(f"警告：目标路径 {destination} 位于常规服务用户主目录之外。")
+        if not _yes_no("是否允许此配置使用高风险目标路径？", default=False):
+            raise SyncError("已取消启用高风险目标路径", 2)
         profile["danger_enabled"] = True
     if not sys.stdin.isatty():
-        raise SyncError("dangerous destination requires an interactive TTY", 2)
-    typed = input(f"Type exactly 'yes' to package for dangerous destination {destination}: ")
-    if typed != "yes":
-        raise SyncError("dangerous destination confirmation rejected", 2)
+        raise SyncError("高风险目标路径必须在交互式终端中确认", 2)
+    print(f"再次确认：更新将部署到高风险路径 {destination}")
+    if not _yes_no("确认继续打包？", default=False):
+        raise SyncError("已取消高风险目标路径操作", 2)
     return True
 
 
@@ -89,21 +115,23 @@ def _choose_media() -> Path:
         choices = discover_media()
         if len(choices) == 1:
             mount = choices[0]
+            print(f"已自动选择更新介质：{mount}")
         elif choices:
-            print("Available initialized media:")
+            print("检测到以下已初始化的更新介质：")
             for index, item in enumerate(choices, 1):
                 print(f"  {index}. {item}")
-            raw = _prompt("Select media number", "1")
+            raw = _prompt("请输入介质编号", "1")
             try:
                 mount = choices[int(raw) - 1]
             except (ValueError, IndexError) as exc:
-                raise SyncError("invalid media selection", 2) from exc
+                raise SyncError("介质编号无效", 2) from exc
         else:
-            mount = Path(_prompt("Mounted removable-media path")).expanduser().resolve()
+            print("没有检测到已初始化的更新介质。")
+            mount = Path(_prompt("请输入已挂载的移动介质路径")).expanduser().resolve()
     marker = media_root(mount) / "media.json"
     if not marker.exists():
-        if not _yes_no(f"Initialize {mount} for Repo Offline Sync?", default=False):
-            raise SyncError("media is not initialized", 2)
+        if not _yes_no(f"介质 {mount} 尚未初始化，是否现在初始化？", default=False):
+            raise SyncError("介质尚未初始化，已取消打包", 2)
         initialize_media(mount)
     read_media_marker(mount)
     return mount
@@ -189,7 +217,7 @@ def build_package(repo: Path, mount: Path, profile_path: Path, profile: dict[str
     receipt_values = _ingest_receipts(mount, str(profile["target_id"]))
     bases = _latest_bases(receipt_values)
     if not bases and not full_fallback:
-        print("warning: no successful target receipt is known; without full fallback this package will report needs-full-bundle on a fresh target")
+        print("警告：尚未找到该目标机的成功回执；如果不加入完整备用包，新目标机会提示需要完整包。")
     generation = int(profile.get("generation", 0)) + 1
     package_id = uuid.uuid4().hex
     work = cache_root() / "packages" / package_id
@@ -298,10 +326,11 @@ def package_repository(repo: Path) -> Path:
     profile["danger_enabled"] = bool(profile.get("danger_enabled") or dangerous)
     save_profile(profile_path, profile)
     mount = _choose_media()
-    full = _yes_no("Include full fallback bundle?", default=False)
+    full = _yes_no("是否同时加入完整备用包？（体积更大，新目标机首次部署通常需要）", default=False)
     work, manifest = build_package(repo, mount, profile_path, profile, full)
     final = publish_package(work, mount, str(manifest["package_id"]))
     profile["generation"] = int(manifest["generation"])
     save_profile(profile_path, profile)
-    print(f"Published package {manifest['package_id']} -> {final}")
+    print(f"打包完成：{manifest['package_id']}")
+    print(f"发布位置：{final}")
     return final

@@ -12,14 +12,14 @@ from repo_offline_sync.packager import package_repository
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) > 1:
-        print("Usage: package_update.sh [repository]", file=sys.stderr)
+        print("用法：./package_update.sh [仓库路径]", file=sys.stderr)
         return 2
     repo = Path(args[0]) if args else Path.cwd()
     try:
         package_repository(repo)
     except (SyncError, OSError) as exc:
         code = exc.exit_code if isinstance(exc, SyncError) else 8
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"错误：{exc}", file=sys.stderr)
         return code
     return 0
 
