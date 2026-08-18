@@ -1,0 +1,31 @@
+{
+  "destination": "/home/shm-white/RM2026-AutoAim-release",
+  "service_user": "shm-white",
+  "service_unit": "rm2026-autoaim.service",
+  "persistent_paths": ["logs"],
+  "failure_policy": "rollback",
+  "actions": {
+    "preflight": [],
+    "build": [
+      {
+        "name": "cmake-configure",
+        "argv": ["cmake", "-S", ".", "-B", "build"],
+        "cwd": ".",
+        "env": {},
+        "user": "shm-white",
+        "timeout": 300
+      },
+      {
+        "name": "cmake-build",
+        "argv": ["cmake", "--build", "build", "-j2"],
+        "cwd": ".",
+        "env": {},
+        "user": "shm-white",
+        "timeout": 1200
+      }
+    ],
+    "pre_activate": [],
+    "post_activate": [],
+    "health": []
+  }
+}

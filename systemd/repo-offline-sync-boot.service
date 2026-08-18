@@ -1,0 +1,11 @@
+[Unit]
+Description=Repo Offline Sync boot media scan
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/repo-offline-sync/scan
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

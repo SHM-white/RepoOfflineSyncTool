@@ -1,0 +1,8 @@
+[Unit]
+Description=Repo Offline Sync removable-media scan
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/repo-offline-sync/scan
+TimeoutStartSec=0
